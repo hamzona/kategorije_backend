@@ -27,7 +27,7 @@ const handleNewUser = async (req, res) => {
     const refreshToken = jwt.sign(
       { username: user },
       process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: "2d" }
+      { expiresIn: "48" }
     );
 
     //encrypt the password
