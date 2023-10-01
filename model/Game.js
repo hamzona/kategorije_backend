@@ -14,10 +14,13 @@ const userSchema = new Schema({
     type: Schema.ObjectId,
     ref: "kategorije_kategorija",
   },
-  coverdWords: { type: Array },
+  coverdWords: {
+    type: Array,
+  },
+
   isGamePlaying: { type: Boolean, default: false },
   currentUserIndex: { type: Number, default: 0 },
-
+  coverdCategories: { type: Array },
   users: [
     {
       type: Schema.ObjectId,

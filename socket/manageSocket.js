@@ -3,17 +3,14 @@ const User = require("../model/User");
 const Category = require("../model/Category");
 
 const manageSocket = async (socket) => {
-  const { user } = socket.handshake.query;
-
   socket.on("rejoin-user", ({ socketID }) => {
     socket.join(socketID);
   });
-  socket.on("join-user", async ({ id: socketID }) => {
+  socket.on("join-user", async ({ id: socketID, user }) => {
     socket.join(socketID);
 
     const id = await User.findOne({ username: user }).select("_id").exec();
     const justID = id._id.toString();
-
     const updatedGame = await Game.findOneAndUpdate(
       { socketID },
       {
@@ -21,13 +18,18 @@ const manageSocket = async (socket) => {
       },
       { returnOriginal: false }
     );
+
+    const data = await Game.findOne({ socketID }).populate("users");
+
     socket.server.in(socketID).emit("update-user", {
-      user,
-      usersNumber: updatedGame.users.length,
+      users: data.users,
+      usersNumber: data.usersNumber,
     });
     /*Gameplay start */
     if (updatedGame.users.length === updatedGame.usersNumber) {
       /*set random category*/
+
+      // async function a() {
       const count = await Category.countDocuments();
       const randomIndex = Math.floor(Math.random() * count);
 
@@ -35,11 +37,18 @@ const manageSocket = async (socket) => {
         { $skip: randomIndex },
         { $limit: 1 },
       ]).exec();
-
+      // console.log(
+      //   updatedGame.coverdCategories.includes(randomCategory[0]._id)
+      // );
+      // if (updatedGame.coverdCategories.includes(randomCategory[0]._id)) {
+      //   return a();
+      // // } else {
       const updatedGame = await Game.findOneAndUpdate(
         { socketID },
         {
           $set: { category: randomCategory[0]._id, isGamePlaying: true },
+
+          $push: { coverdCategories: randomCategory[0]._id },
         },
         { upsert: true, returnOriginal: false }
       );
@@ -50,12 +59,19 @@ const manageSocket = async (socket) => {
         .exec();
 
       socket.server.in(socketID).emit("game-start", { users });
+      // }
+      // }
+      // a();
     }
   });
 
   socket.on("try", async ({ input, socketID }) => {
     const gameE = await Game.findOne({ socketID }).populate("category");
     input = input.toLowerCase();
+    // console.log(gameE.category.name);
+    // console.log(gameE.coverdWordsAndCategories);
+    console.log(input);
+    console.log(gameE.coverdWords.includes(input));
 
     if (
       gameE.category.examples.includes(input) &&
@@ -67,15 +83,53 @@ const manageSocket = async (socket) => {
           ? 0
           : gameE.currentUserIndex + 1;
 
-      const updateGame = await Game.findOneAndUpdate(
+      //Update word
+
+      const updatedGame = await Game.findOneAndUpdate(
+        { socketID },
         {
-          socketID,
+          $push: {
+            coverdWords: input,
+          },
         },
-        { $set: { currentUserIndex: l }, $push: { coverdWords: input } },
-        { returnOriginal: false }
+        {
+          upsert: true,
+          returnOriginal: false,
+        }
       );
 
-      //console.log(updateGame);
+      //if every word in category is coverd
+      if (updatedGame.coverdWords.length === gameE.category.examples.length) {
+        // console.log("changing category");
+        // async function a() {
+        const count = await Category.countDocuments();
+        const randomIndex = Math.floor(Math.random() * count);
+
+        const randomCategory = await Category.aggregate([
+          { $skip: randomIndex },
+          { $limit: 1 },
+        ]).exec();
+
+        // console.log("changing category");
+
+        // console.log(
+        //   updatedGame.coverdCategories.includes(randomCategory[0]._id)
+        // );
+        // if (updatedGame.coverdCategories.includes(randomCategory[0]._id)) {
+        //   return a();
+        // } else {
+        const updatedGame = await Game.findOneAndUpdate(
+          { socketID },
+          {
+            $set: { category: randomCategory[0]._id },
+            $push: { coverdCategories: randomCategory[0]._id },
+          },
+          { upsert: true, returnOriginal: false }
+        );
+        // }
+        // }
+        // await a();
+      }
 
       const data = await Game.findOne({ socketID }).populate([
         "users",
@@ -96,6 +150,7 @@ const manageSocket = async (socket) => {
       gameE.currentUserIndex === gameE.usersNumber - 1
         ? 0
         : gameE.currentUserIndex + 1;
+
     const updatedGame = await Game.findOneAndUpdate(
       { socketID },
       {
@@ -113,19 +168,39 @@ const manageSocket = async (socket) => {
 
     // console.log(a);
     socket.emit("redirect");
+    // if (updatedGame.isGamePlaying) {
+    // } else
+
     if (updatedGame.users.length === 1) {
-      console.log("game end");
+      socket.server.in(socketID).emit("win");
+
+      const pullCoverdWords = await Game.findOneAndUpdate(
+        { socketID },
+        {
+          $set: {
+            coverdWords: [],
+            coverdCategories: [],
+            isGamePlaying: false,
+          },
+        },
+        { returnOriginal: false }
+      );
+      console.log(pullCoverdWords);
+
+      // console.log("game end");
     } else if (updatedGame.users.length === 0) {
       const pullCoverdWords = await Game.findOneAndUpdate(
         { socketID },
         {
           $set: {
             coverdWords: [],
+            coverdCategories: [],
             isGamePlaying: false,
           },
         },
         { returnOriginal: false }
       );
+      console.log(pullCoverdWords);
     } else {
       const data = await Game.findOne({ socketID: id }).populate([
         "users",
@@ -133,11 +208,11 @@ const manageSocket = async (socket) => {
       ]);
       socket.server.in(socketID).emit("update-game-data", {});
     }
-    console.log(updatedGame);
   });
 
   /*Leave room*/
   socket.on("leave-room", async ({ socketID, user }) => {
+    console.log("tringer");
     socket.leave(socketID);
 
     const id = await User.findOne({ username: user }).select("_id").exec();
@@ -154,30 +229,36 @@ const manageSocket = async (socket) => {
       { returnOriginal: false }
     );
     //  console.log(updatedGame);
+    // if (updatedGame.isGamePlaying) {
+    //} else
 
     if (updatedGame.users.length === 1) {
       socket.server.in(socketID).emit("win");
-      const updateGame = await Game.findOneAndUpdate(
+      const pullCoverdWords = await Game.findOneAndUpdate(
         { socketID },
         {
           $set: {
             coverdWords: [],
+            coverdCategories: [],
             isGamePlaying: false,
           },
         },
         { returnOriginal: false }
       );
+      console.log(pullCoverdWords);
     } else if (updatedGame.users.length === 0) {
       const pullCoverdWords = await Game.findOneAndUpdate(
         { socketID },
         {
           $set: {
             coverdWords: [],
+            coverdCategories: [],
             isGamePlaying: false,
           },
         },
         { returnOriginal: false }
       );
+      console.log(pullCoverdWords);
     } else {
       const data = await Game.findOne({ socketID: id }).populate([
         "users",
@@ -185,7 +266,6 @@ const manageSocket = async (socket) => {
       ]);
       socket.server.in(socketID).emit("update-game-data", { data });
     }
-    console.log(updatedGame);
   });
 };
 
