@@ -88,6 +88,9 @@ const manageSocket = async (socket) => {
       const updatedGame = await Game.findOneAndUpdate(
         { socketID },
         {
+          $set: {
+            currentUserIndex: l,
+          },
           $push: {
             coverdWords: input,
           },
