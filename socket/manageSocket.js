@@ -6,6 +6,7 @@ const manageSocket = async (socket) => {
   socket.on("rejoin-user", ({ socketID }) => {
     socket.join(socketID);
   });
+
   socket.on("join-user", async ({ id: socketID, user }) => {
     socket.join(socketID);
 
@@ -26,7 +27,10 @@ const manageSocket = async (socket) => {
       usersNumber: data.usersNumber,
     });
     /*Gameplay start */
-    if (updatedGame.users.length === updatedGame.usersNumber) {
+    if (
+      updatedGame.users.length === updatedGame.usersNumber &&
+      !updatedGame.isGamePlaying
+    ) {
       /*set random category*/
 
       // async function a() {

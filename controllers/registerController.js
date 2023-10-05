@@ -17,9 +17,7 @@ const handleNewUser = async (req, res) => {
     // create JWTs
     const accessToken = jwt.sign(
       {
-        UserInfo: {
-          username: user,
-        },
+        username: user,
       },
       process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: "10s" }
@@ -37,7 +35,7 @@ const handleNewUser = async (req, res) => {
     const result = await User.create({
       username: user,
       password: hashedPwd,
-      refreshToken: [refreshToken],
+      refreshToken: refreshToken,
     });
 
     //console.log(result);

@@ -6,19 +6,12 @@ const userSchema = new Schema({
     type: String,
     required: true,
   },
-  roles: {
-    User: {
-      type: Number,
-      default: 2001,
-    },
-    Editor: Number,
-    Admin: Number,
-  },
+
   password: {
     type: String,
     required: true,
   },
-  refreshToken: [String],
+  refreshToken: { type: String },
 });
 
 module.exports = mongoose.model("kategorije_user", userSchema);
