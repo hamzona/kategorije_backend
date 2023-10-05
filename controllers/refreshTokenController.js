@@ -9,35 +9,30 @@ const handleRefreshToken = async (req, res) => {
 
   const foundUser = await User.findOne({ refreshToken }).exec();
 
-  // // Detected refresh token reuse!
-  // if (!foundUser) {
-  //   jwt.verify(
-  //     refreshToken,
-  //     process.env.REFRESH_TOKEN_SECRET,
-  //     async (err, decoded) => {
-  //       if (err) return res.sendStatus(403); //Forbidden
-  //       // Delete refresh tokens of hacked user
-  //       const hackedUser = await User.findOne({
-  //         username: decoded.username,
-  //       }).exec();
-  //       hackedUser.refreshToken = [];
-  //       const result = await hackedUser.save();
-  //     }
-  //   );
-  //   return res.sendStatus(403); //Forbidden
-  // }
+  // Detected refresh token reuse!
+  if (!foundUser) {
+    jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET,
+      async (err, decoded) => {
+        if (err) return res.sendStatus(403); //Forbidden
+        // Delete refresh tokens of hacked user
+        const hackedUser = await User.findOne({
+          username: decoded.username,
+        }).exec();
+        hackedUser.refreshToken = null;
+        const result = await hackedUser.save();
+      }
+    );
+    return res.sendStatus(403); //Forbidden
+  }
 
   // evaluate jwt
   jwt.verify(
     refreshToken,
     process.env.REFRESH_TOKEN_SECRET,
     async (err, decoded) => {
-      if (err) {
-        // expired refresh token
-        const result = await foundUser.save();
-      }
-      if (err || foundUser.username !== decoded.username)
-        return res.sendStatus(403);
+      if (err) return res.sendStatus(403);
 
       // Refresh token was still valid
       const accessToken = jwt.sign(
