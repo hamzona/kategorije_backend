@@ -19,7 +19,7 @@ const io = require("socket.io")(server, {
   },
 });
 
-io.on("connection", require("./socket/manageSocket"));
+io.on("connection", require("./socket/manageSocket2"));
 
 // Connect to MongoDB
 connectDB();

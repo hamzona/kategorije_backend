@@ -27,6 +27,17 @@ const userSchema = new Schema({
       ref: "kategorije_user",
     },
   ],
+  interval: {
+    duration: { type: Number, default: 30 },
+    clear: {
+      type: Boolean,
+      default: false,
+    },
+    intervalTime: {
+      type: Number,
+      default: 1000,
+    },
+  },
 });
 
 module.exports = mongoose.model("kategorije_game", userSchema);
