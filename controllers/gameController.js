@@ -1,15 +1,15 @@
 const Game = require("../model/Game");
 
 const createGame = async (req, res) => {
-  const { name, usersNumber } = req.body;
-  if (!name) return res.status(500).json({ message: "Name is required!" });
+  const { usersNumber, creator } = req.body;
   try {
     const newGame = await Game.create({
-      name,
       usersNumber,
       users: [],
+      creator,
+      private: true,
     });
-    res.json({ newGame });
+    res.json(newGame);
   } catch (err) {
     console.log(err.message);
     res.status(500).json({ message: err.message });
@@ -18,7 +18,7 @@ const createGame = async (req, res) => {
 
 const getGames = async (req, res) => {
   try {
-    const foundGames = await Game.find();
+    const foundGames = await Game.find({ private: true });
 
     res.json(foundGames);
   } catch (err) {
@@ -42,4 +42,30 @@ const getOneGame = async (req, res) => {
   }
 };
 
-module.exports = { createGame, getGames, getOneGame };
+const findGame = async (req, res) => {
+  const { usersNumber } = req.body;
+
+  const foundGame = await Game.findOne({
+    usersNumber,
+    isGamePlaying: false,
+    private: false,
+  }).exec();
+  if (!foundGame) {
+    try {
+      const newGame = await Game.create({
+        name: `Game of ${usersNumber}`,
+        usersNumber,
+        users: [],
+      });
+      console.log("New");
+      return res.json(newGame);
+    } catch (err) {
+      console.log(err.message);
+      res.status(500).json({ message: err.message });
+    }
+  } else {
+    res.json(foundGame);
+  }
+};
+
+module.exports = { createGame, getGames, getOneGame, findGame };

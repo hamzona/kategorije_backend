@@ -3,10 +3,34 @@ const User = require("../model/User");
 const Category = require("../model/Category");
 
 const manageSocket = async (socket) => {
+  if (socket.handshake.query.user) {
+    User.findOneAndUpdate(
+      { username: socket.handshake.query.user },
+      { $set: { online: true } },
+      { upsert: true, returnOriginal: false }
+    );
+  }
+
+  socket.on("disconnect", async () => {
+    if (socket.handshake.query.user) {
+      User.findOneAndUpdate(
+        { username: socket.handshake.query.user },
+        { $set: { online: false } },
+        { upsert: true, returnOriginal: false }
+      );
+    }
+  });
   //JOIN USER
   socket.on("join-user", async ({ socketID, user }) => {
     const game = await Game.findOne({ socketID }).populate("users");
-    if (game.users.find((item) => item.username === user)?.username) {
+    if (game === null) return;
+
+    if (
+      game?.isGamePlaying &&
+      game?.users?.find((item) => item.username === user)?.username
+    ) {
+      console.log("rejoining");
+
       return socket.join(socketID);
     }
     socket.join(socketID);
@@ -21,8 +45,56 @@ const manageSocket = async (socket) => {
       { returnOriginal: false }
     );
 
+    //remove players that are not online
+    const removeOfflinePlayers = await Game.findOne({ socketID }).populate(
+      "users"
+    );
+
+    removeOfflinePlayers.users = removeOfflinePlayers.users.filter(
+      (user) => user.online !== false
+    );
+    const onlineUsers = removeOfflinePlayers.users.map((user) => {
+      return user._id.toString();
+    });
+
+    await Game.findOneAndUpdate(
+      { socketID },
+      {
+        $set: { users: onlineUsers },
+      }
+    );
+
     if (updatedGame.users.length === updatedGame.usersNumber) {
       /*set random category*/
+
+      // console.log("Users");
+      // const currentDate = new Date();
+      // const updateUsers = await User.updateMany(
+      //   { _id: { $in: updatedGame.users } },
+      //   {
+      //     $set: {
+      //       lastGameDate: currentDate,
+      //     },
+      //   },
+      //   { upsert: true, returnOriginal: false }
+      // );
+
+      // console.log(updateUsers);
+      // updatedGame.users.forEach(async (user) => {
+      //   const updateUser = await User.findOneAndUpdate(
+      //     {
+      //       _id: user,
+      //     },
+      //     {
+      //       $set: {
+      //         lastGameDate: currentDate,
+      //       },
+      //     },
+      //     { upsert: true, returnOriginal: false }
+      //   );
+      //   console.log(updateUser);
+      // });
+
       const count = await Category.countDocuments();
       const randomIndex = Math.floor(Math.random() * count);
 
@@ -47,11 +119,11 @@ const manageSocket = async (socket) => {
 
     const data = await Game.findOne({ socketID }).populate("users").exec();
     console.log("update-loby");
-    console.log(data);
     socket.server.in(socketID).emit("update-loby", {
       data,
     });
   });
+
   //TRY
   socket.on("try", async ({ input, socketID, user }) => {
     const game = await Game.findOne({ socketID }).populate("category");
@@ -71,6 +143,7 @@ const manageSocket = async (socket) => {
           $set: {
             currentUserIndex: l,
             "interval.clear": true,
+            wrongExamples: [],
           },
           $push: {
             coverdWords: input,
@@ -82,29 +155,38 @@ const manageSocket = async (socket) => {
         }
       );
 
+      if (updatedGame.coverdWords.length === game.category.examples.length) {
+        const count = await Category.countDocuments();
+        const randomIndex = Math.floor(Math.random() * count);
+
+        const randomCategory = await Category.aggregate([
+          { $skip: randomIndex },
+          { $limit: 1 },
+        ]).exec();
+
+        const updatedGame = await Game.findOneAndUpdate(
+          { socketID },
+          {
+            $set: { category: randomCategory[0]._id, isGamePlaying: true },
+
+            $push: { coverdCategories: randomCategory[0]._id },
+          },
+          { upsert: true, returnOriginal: false }
+        );
+      }
       console.log(updatedGame);
-    }
-    const testGame = await Game.findOne({ socketID }).populate("category");
-    if (testGame.coverdWords.length === testGame.category.examples.length) {
-      const count = await Category.countDocuments();
-      const randomIndex = Math.floor(Math.random() * count);
-
-      const randomCategory = await Category.aggregate([
-        { $skip: randomIndex },
-        { $limit: 1 },
-      ]).exec();
-
+    } else {
+      console.log("wrong try");
       const updatedGame = await Game.findOneAndUpdate(
         { socketID },
         {
-          $set: { category: randomCategory[0]._id, isGamePlaying: true },
-
-          $push: { coverdCategories: randomCategory[0]._id },
+          $push: { wrongExamples: input },
         },
         { upsert: true, returnOriginal: false }
       );
+      socket.emit("wrong-try", { wrongExamples: updatedGame.wrongExamples });
     }
-    // timerPlay({ socketID });
+
     const data = await Game.findOne({ socketID }).populate([
       "users",
       "category",
@@ -136,7 +218,7 @@ const manageSocket = async (socket) => {
         socket.server.in(socketID).emit("redirect", {
           user: game.users[game.currentUserIndex].username,
         });
-        loseGame({
+        removePlayer({
           socketID,
           user: game.users[game.currentUserIndex].username,
         });
@@ -145,8 +227,8 @@ const manageSocket = async (socket) => {
     }, 1000);
   };
 
-  //LOSE GAME
-  const loseGame = async ({ socketID, user }) => {
+  //Remove Player of Lose game
+  const removePlayer = async ({ socketID, user }) => {
     const game = await Game.findOne({ socketID });
 
     socket.leave(socketID);
@@ -168,9 +250,14 @@ const manageSocket = async (socket) => {
       },
       { returnOriginal: false }
     );
-
-    if (updatedGame.users.length <= 1) {
+    if (updatedGame.users.length === 0) {
+      const deleteGame = await Game.findOneAndDelete({
+        socketID,
+      });
+      console.log("Game deleted");
+    } else if (updatedGame.users.length === 1) {
       socket.server.in(socketID).emit("win");
+      timerPlay({ socketID, user });
 
       const resetGame = await Game.findOneAndUpdate(
         { socketID },
@@ -189,29 +276,30 @@ const manageSocket = async (socket) => {
       socket.server.in(socketID).emit("update-game-data", { data });
     }
   };
-  //LEAVE ROOM
-  //   socket.on("leave-room", async ({ socketID, user }) => {
-  //     const game = await Game.findOne({ socketID });
-  //     if (game.isGamePlaying) {
-  //       return socket.leave(socketID);
-  //     }
+  // LEAVE ROOM
+  socket.on("leave-room", async ({ socketID, user }) => {
+    const game = await Game.findOne({ socketID });
+    if (!game) return;
+    if (game.isGamePlaying) {
+      return socket.leave(socketID);
+    }
 
-  //     const id = await User.findOne({ username: user }).select("_id").exec();
-  //     const justID = id._id.toString();
+    const id = await User.findOne({ username: user }).select("_id").exec();
+    const justID = id._id.toString();
 
-  //     const updatedGame = await Game.findOneAndUpdate(
-  //       { socketID },
-  //       {
-  //         $pull: {
-  //           users: justID,
-  //         },
-  //       },
-  //       { returnOriginal: false }
-  //     );
+    const updatedGame = await Game.findOneAndUpdate(
+      { socketID },
+      {
+        $pull: {
+          users: justID,
+        },
+      },
+      { returnOriginal: false }
+    );
 
-  //     const data = await Game.findOne({ socketID }).populate("users");
-  //     socket.server.in(socketID).emit("update-user", { data });
-  //   });
+    const data = await Game.findOne({ socketID }).populate("users");
+    socket.server.in(socketID).emit("update-user", { data });
+  });
 };
 
 module.exports = manageSocket;

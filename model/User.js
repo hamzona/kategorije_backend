@@ -12,6 +12,8 @@ const userSchema = new Schema({
     required: true,
   },
   refreshToken: { type: String },
+  //lastGameDate: { type: Date },
+  online: { type: Boolean },
 });
 
 module.exports = mongoose.model("kategorije_user", userSchema);

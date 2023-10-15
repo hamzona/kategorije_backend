@@ -2,13 +2,14 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 const { v4 } = require("uuid");
 const userSchema = new Schema({
-  name: { type: String, required: true },
   socketID: {
     type: String,
     default: () => {
-      return v4();
+      return v4().toString().replace("-", "").substring(0, 6);
     },
   },
+  createor: { type: String },
+  private: { type: Boolean, default: false },
   usersNumber: { type: Number, default: 2 },
   category: {
     type: Schema.ObjectId,
@@ -17,7 +18,7 @@ const userSchema = new Schema({
   coverdWords: {
     type: Array,
   },
-
+  wrongExamples: { type: Array },
   isGamePlaying: { type: Boolean, default: false },
   currentUserIndex: { type: Number, default: 0 },
   coverdCategories: { type: Array },
