@@ -128,6 +128,7 @@ const manageSocket = async (socket) => {
   socket.on("try", async ({ input, socketID, user }) => {
     const game = await Game.findOne({ socketID }).populate("category");
     input = input.toLowerCase();
+
     if (
       game.category.examples.includes(input) &&
       !game.coverdWords.includes(input)
