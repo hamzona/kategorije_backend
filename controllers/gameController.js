@@ -17,8 +17,9 @@ const createGame = async (req, res) => {
 };
 
 const getGames = async (req, res) => {
+  const { creator } = req.body;
   try {
-    const foundGames = await Game.find({ private: true });
+    const foundGames = await Game.find({ private: true, creator });
 
     res.json(foundGames);
   } catch (err) {
