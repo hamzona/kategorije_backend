@@ -8,7 +8,7 @@ const userSchema = new Schema({
       return v4().toString().replace("-", "").substring(0, 6);
     },
   },
-  createor: { type: String },
+  creator: { type: String },
   private: { type: Boolean, default: false },
   usersNumber: { type: Number, default: 2 },
   category: {
