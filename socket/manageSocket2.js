@@ -201,9 +201,10 @@ const manageSocket = async (socket) => {
       const game = await Game.findOne({ socketID }).populate("users");
       if (game.interval.clear === true) {
         clearInterval(intervalID);
-        game.interval.clear = false;
-        game.interval.duration = 30;
-        await game.save();
+        await Game.findOneAndUpdate(
+          { socketID },
+          { $set: { "interval.clear": false, "interval.duration": 30 } }
+        );
 
         if (game.isGamePlaying) {
           timerPlay({ socketID });
@@ -232,7 +233,6 @@ const manageSocket = async (socket) => {
   const removePlayer = async ({ socketID, user }) => {
     const game = await Game.findOne({ socketID });
 
-    socket.leave(socketID);
     const id = await User.findOne({ username: user }).select("_id").exec();
     const justID = id._id.toString();
 
@@ -240,6 +240,7 @@ const manageSocket = async (socket) => {
       game.currentUserIndex === game.usersNumber - 1
         ? 0
         : game.currentUserIndex + 1;
+    socket.leave(socketID);
 
     const updatedGame = await Game.findOneAndUpdate(
       { socketID },
@@ -258,19 +259,7 @@ const manageSocket = async (socket) => {
       console.log("Game deleted");
     } else if (updatedGame.users.length === 1) {
       socket.server.in(socketID).emit("win");
-      timerPlay({ socketID, user });
-
-      const resetGame = await Game.findOneAndUpdate(
-        { socketID },
-        {
-          $set: {
-            coverdWords: [],
-            coverdCategories: [],
-            isGamePlaying: false,
-          },
-        },
-        { returnOriginal: false }
-      );
+      timerPlay({ socketID });
     } else {
       const data = await Game.findOne({ socketID: id }).populate(["users"]);
       timerPlay({ socketID, user });
