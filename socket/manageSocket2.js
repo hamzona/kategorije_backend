@@ -237,7 +237,7 @@ const manageSocket = async (socket) => {
     const justID = id._id.toString();
 
     let newIndex =
-      game.currentUserIndex === game.users.length - 2
+      game.currentUserIndex >= game.users.length - 2
         ? 0
         : game.currentUserIndex + 1;
 
