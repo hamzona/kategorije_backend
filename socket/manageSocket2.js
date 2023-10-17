@@ -134,7 +134,7 @@ const manageSocket = async (socket) => {
       !game.coverdWords.includes(input)
     ) {
       let l =
-        game.currentUserIndex === game.users.length - 2
+        game.currentUserIndex === game.users.length - 1
           ? 0
           : game.currentUserIndex + 1;
 
