@@ -18,6 +18,7 @@ const userSchema = new Schema({
   coverdWords: {
     type: Array,
   },
+  win: { type: Boolean, default: false },
   wrongExamples: { type: Array },
   isGamePlaying: { type: Boolean, default: false },
   currentUserIndex: { type: Number, default: 0 },

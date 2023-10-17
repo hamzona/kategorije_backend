@@ -4,7 +4,7 @@ const Category = require("../model/Category");
 
 const manageSocket = async (socket) => {
   if (socket.handshake.query.user) {
-    User.findOneAndUpdate(
+    await User.findOneAndUpdate(
       { username: socket.handshake.query.user },
       { $set: { online: true } },
       { upsert: true, returnOriginal: false }
@@ -13,7 +13,7 @@ const manageSocket = async (socket) => {
 
   socket.on("disconnect", async () => {
     if (socket.handshake.query.user) {
-      User.findOneAndUpdate(
+      await User.findOneAndUpdate(
         { username: socket.handshake.query.user },
         { $set: { online: false } },
         { upsert: true, returnOriginal: false }
@@ -57,14 +57,14 @@ const manageSocket = async (socket) => {
       return user._id.toString();
     });
 
-    await Game.findOneAndUpdate(
+    const finalUsers = await Game.findOneAndUpdate(
       { socketID },
       {
         $set: { users: onlineUsers },
       }
     );
 
-    if (updatedGame.users.length === updatedGame.usersNumber) {
+    if (finalUsers.users.length === updatedGame.usersNumber) {
       /*set random category*/
 
       // console.log("Users");
@@ -134,7 +134,7 @@ const manageSocket = async (socket) => {
       !game.coverdWords.includes(input)
     ) {
       let l =
-        game.currentUserIndex === game.usersNumber - 1
+        game.currentUserIndex === game.users.length - 2
           ? 0
           : game.currentUserIndex + 1;
 
@@ -237,10 +237,9 @@ const manageSocket = async (socket) => {
     const justID = id._id.toString();
 
     let newIndex =
-      game.currentUserIndex === game.usersNumber - 1
+      game.currentUserIndex === game.users.length - 2
         ? 0
         : game.currentUserIndex + 1;
-    socket.leave(socketID);
 
     const updatedGame = await Game.findOneAndUpdate(
       { socketID },
@@ -248,7 +247,11 @@ const manageSocket = async (socket) => {
         $pull: {
           users: justID,
         },
-        $set: { currentUserIndex: newIndex },
+        $set: {
+          currentUserIndex: newIndex,
+          "interval.duration": 30,
+          "interval.clear": false,
+        },
       },
       { returnOriginal: false }
     );
@@ -259,12 +262,22 @@ const manageSocket = async (socket) => {
       console.log("Game deleted");
     } else if (updatedGame.users.length === 1) {
       socket.server.in(socketID).emit("win");
+      const updatedGame = await Game.findOneAndUpdate(
+        { socketID },
+        {
+          $set: {
+            win: true,
+          },
+        },
+        { returnOriginal: false }
+      );
       timerPlay({ socketID });
     } else {
       const data = await Game.findOne({ socketID: id }).populate(["users"]);
-      timerPlay({ socketID, user });
+      timerPlay({ socketID });
       socket.server.in(socketID).emit("update-game-data", { data });
     }
+    socket.leave(socketID);
   };
   // LEAVE ROOM
   socket.on("leave-room", async ({ socketID, user }) => {
