@@ -25,7 +25,7 @@ const handleNewUser = async (req, res) => {
     const refreshToken = jwt.sign(
       { username: user },
       process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: "48" }
+      { expiresIn: "48h" }
     );
 
     //encrypt the password
@@ -38,7 +38,7 @@ const handleNewUser = async (req, res) => {
       refreshToken: refreshToken,
     });
 
-    //console.log(result);
+    console.log(result);
     res.cookie("jwt", refreshToken, {
       httpOnly: true,
       secure: true,

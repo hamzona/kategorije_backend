@@ -61,7 +61,8 @@ const manageSocket = async (socket) => {
       { socketID },
       {
         $set: { users: onlineUsers },
-      }
+      },
+      { returnOriginal: false }
     );
 
     if (finalUsers.users.length === updatedGame.usersNumber) {
@@ -108,7 +109,7 @@ const manageSocket = async (socket) => {
           $set: {
             category: randomCategory[0]._id,
             isGamePlaying: true,
-            "interval.duration": 30,
+            "interval.duration": 15,
           },
           $push: { coverdCategories: randomCategory[0]._id },
         },
@@ -203,7 +204,7 @@ const manageSocket = async (socket) => {
         clearInterval(intervalID);
         await Game.findOneAndUpdate(
           { socketID },
-          { $set: { "interval.clear": false, "interval.duration": 30 } }
+          { $set: { "interval.clear": false, "interval.duration": 15 } }
         );
 
         if (game.isGamePlaying) {
@@ -229,7 +230,7 @@ const manageSocket = async (socket) => {
     }, 1000);
   };
 
-  //Remove Player of Lose game
+  //Remove Player
   const removePlayer = async ({ socketID, user }) => {
     const game = await Game.findOne({ socketID });
 
@@ -249,7 +250,7 @@ const manageSocket = async (socket) => {
         },
         $set: {
           currentUserIndex: newIndex,
-          "interval.duration": 30,
+          "interval.duration": 15,
           "interval.clear": false,
         },
       },
@@ -273,11 +274,14 @@ const manageSocket = async (socket) => {
       );
       timerPlay({ socketID });
     } else {
-      const data = await Game.findOne({ socketID: id }).populate(["users"]);
+      const data = await Game.findOne({ socketID }).populate([
+        "users",
+        "category",
+      ]);
       timerPlay({ socketID });
+      console.log(data);
       socket.server.in(socketID).emit("update-game-data", { data });
     }
-    socket.leave(socketID);
   };
   // LEAVE ROOM
   socket.on("leave-room", async ({ socketID, user }) => {

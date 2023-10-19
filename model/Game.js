@@ -30,7 +30,7 @@ const userSchema = new Schema({
     },
   ],
   interval: {
-    duration: { type: Number, default: 30 },
+    duration: { type: Number, default: 15 },
     clear: {
       type: Boolean,
       default: false,
