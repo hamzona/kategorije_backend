@@ -169,7 +169,11 @@ const manageSocket = async (socket) => {
         const updatedGame = await Game.findOneAndUpdate(
           { socketID },
           {
-            $set: { category: randomCategory[0]._id, isGamePlaying: true },
+            $set: {
+              category: randomCategory[0]._id,
+              coverdWords: [],
+              isGamePlaying: true,
+            },
 
             $push: { coverdCategories: randomCategory[0]._id },
           },
