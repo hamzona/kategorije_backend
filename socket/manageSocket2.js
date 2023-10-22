@@ -125,15 +125,34 @@ const manageSocket = async (socket) => {
     });
   });
 
+  function comparingStringWithMistakes({ game, input }) {
+    return game.category.examples.find((item) => {
+      let mistakes = 0;
+      if (item.length - 2 <= input.length && item.length + 2 >= input.length) {
+        for (let i = 0; i < item.length; i++) {
+          if (!input[i]) {
+            mistakes++;
+          } else if (input[i] !== item[i]) {
+            mistakes++;
+          }
+        }
+        if (mistakes <= 2) {
+          if (!game.coverdWords.includes(input)) {
+            return item;
+          }
+        }
+      }
+    });
+  }
+
   //TRY
   socket.on("try", async ({ input, socketID, user }) => {
     const game = await Game.findOne({ socketID }).populate("category");
     input = input.toLowerCase();
 
-    if (
-      game.category.examples.includes(input) &&
-      !game.coverdWords.includes(input)
-    ) {
+    const word = comparingStringWithMistakes({ game, input });
+    console.log(word);
+    if (word) {
       let l =
         game.currentUserIndex === game.users.length - 1
           ? 0
@@ -148,7 +167,7 @@ const manageSocket = async (socket) => {
             wrongExamples: [],
           },
           $push: {
-            coverdWords: input,
+            coverdWords: word,
           },
         },
         {
@@ -180,7 +199,7 @@ const manageSocket = async (socket) => {
           { upsert: true, returnOriginal: false }
         );
       }
-      console.log(updatedGame);
+      //console.log(updatedGame);
     } else {
       console.log("wrong try");
       const updatedGame = await Game.findOneAndUpdate(
@@ -215,7 +234,7 @@ const manageSocket = async (socket) => {
           timerPlay({ socketID });
         }
       } else if (game.interval.duration >= 0) {
-        console.log(game.interval.duration);
+        // console.log(game.interval.duration);
         socket.server.in(socketID).emit("timer-update", {
           seconds: game.interval.duration,
         });
@@ -283,7 +302,7 @@ const manageSocket = async (socket) => {
         "category",
       ]);
       timerPlay({ socketID });
-      console.log(data);
+      // console.log(data);
       socket.server.in(socketID).emit("update-game-data", { data });
     }
   };
