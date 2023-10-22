@@ -128,7 +128,7 @@ const manageSocket = async (socket) => {
   function comparingStringWithMistakes({ game, input }) {
     return game.category.examples.find((item) => {
       let mistakes = 0;
-      if (item.length - 2 <= input.length && item.length + 2 >= input.length) {
+      if (item.length - 1 <= input.length && item.length + 1 >= input.length) {
         for (let i = 0; i < item.length; i++) {
           if (!input[i]) {
             mistakes++;
