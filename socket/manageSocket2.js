@@ -137,7 +137,7 @@ const manageSocket = async (socket) => {
           }
         }
         if (mistakes <= 2) {
-          if (!game.coverdWords.includes(input)) {
+          if (!game.coverdWords.includes(item)) {
             return item;
           }
         }
