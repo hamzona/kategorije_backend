@@ -128,7 +128,13 @@ const manageSocket = async (socket) => {
   function comparingStringWithMistakes({ game, input }) {
     return game.category.examples.find((item) => {
       let mistakes = 0;
-      if (item.length - 1 <= input.length && item.length + 1 >= input.length) {
+
+      if (
+        (item.length >= 5 &&
+          item.length - 1 <= input.length &&
+          item.length + 1 >= input.length) ||
+        (item.length < 5 && item.length === input.length)
+      ) {
         for (let i = 0; i < item.length; i++) {
           if (!input[i]) {
             mistakes++;
@@ -136,7 +142,12 @@ const manageSocket = async (socket) => {
             mistakes++;
           }
         }
-        if (mistakes <= 2) {
+        console.log(item);
+        if (mistakes <= 2 && item.length >= 5) {
+          if (!game.coverdWords.includes(item)) {
+            return item;
+          }
+        } else if (mistakes <= 1) {
           if (!game.coverdWords.includes(item)) {
             return item;
           }
@@ -151,7 +162,6 @@ const manageSocket = async (socket) => {
     input = input.toLowerCase();
 
     const word = comparingStringWithMistakes({ game, input });
-    console.log(word);
     if (word) {
       let l =
         game.currentUserIndex === game.users.length - 1
